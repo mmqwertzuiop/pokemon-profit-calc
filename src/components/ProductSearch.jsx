@@ -85,10 +85,9 @@ function setsToProducts(sets) {
         series: set.series ?? '',
         releaseDate: set.releaseDate ?? '',
         type,
-        cmPrice: local?.cmPrice ?? null,
-        ebayPrice: local?.ebayPrice ?? null,
+        cmPrice: null,
+        ebayPrice: null,
         source: 'api-set',
-        hasLocalPrice: !!local,
       })
     }
   }
@@ -381,10 +380,7 @@ function SealedRow({ p, onSelect }) {
       </div>
       <div className="flex items-center gap-2 shrink-0">
         <TypeBadge type={p.type} />
-        {p.cmPrice != null
-          ? <span className="text-xs text-blue-600">CM €{p.cmPrice}</span>
-          : <span className="text-xs text-slate-300">cenu zadaj</span>
-        }
+        <span className="text-xs text-slate-400 italic">zadaj cenu →</span>
       </div>
     </li>
   )
