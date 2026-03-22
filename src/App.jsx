@@ -5,6 +5,7 @@ import OfferRow from './components/OfferRow'
 import OfferSummary from './components/OfferSummary'
 import SettingsPanel from './components/SettingsPanel'
 import { useLocalStorage } from './hooks/useLocalStorage'
+import { usePriceCache } from './hooks/usePriceCache'
 
 const DEFAULT_SETTINGS = {
   cmFee: 5,
@@ -16,22 +17,38 @@ const DEFAULT_SETTINGS = {
 export default function App() {
   const [offer, setOffer] = useState([])
   const [settings, setSettings] = useLocalStorage('pkm-settings', DEFAULT_SETTINGS)
+  const { enrichProduct, saveToCache } = usePriceCache()
 
   const addProduct = (product) => {
+    // Enrichí produkt o ceny z cache (ak API/DB nemá cenu, použije poslednú manuálnu)
+    const enriched = enrichProduct(product)
     setOffer((prev) => {
-      const existing = prev.findIndex((i) => i.id === product.id)
+      const existing = prev.findIndex((i) => i.id === enriched.id)
       if (existing !== -1) {
         const updated = [...prev]
         updated[existing] = { ...updated[existing], qty: (updated[existing].qty || 1) + 1 }
         return updated
       }
-      return [...prev, { ...product, qty: 1 }]
+      return [...prev, { ...enriched, qty: 1 }]
     })
   }
 
   const updateItem = (id, field, value) => {
     setOffer((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, [field]: value } : item))
+      prev.map((item) => {
+        if (item.id !== id) return item
+        const updated = { ...item, [field]: value }
+        // Keď user zmení cenu, ulož do cache s aktuálnym časom
+        if (field === 'cmPrice' && value) {
+          saveToCache(id, { cmPrice: value, cmUpdatedAt: Date.now(), source: 'manual' })
+          return { ...updated, cmUpdatedAt: Date.now(), priceSource: 'manual' }
+        }
+        if (field === 'ebayPrice' && value) {
+          saveToCache(id, { ebayPrice: value, ebayUpdatedAt: Date.now(), source: 'manual' })
+          return { ...updated, ebayUpdatedAt: Date.now() }
+        }
+        return updated
+      })
     )
   }
 
@@ -70,7 +87,6 @@ export default function App() {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 py-6 space-y-5">
-
         {/* Search + Settings */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="lg:col-span-2 bg-white border border-pkm-border rounded-xl p-4 shadow-sm space-y-3">
@@ -80,13 +96,13 @@ export default function App() {
           <SettingsPanel settings={settings} onChange={setSettings} />
         </div>
 
-        {/* Summary — vždy viditeľné */}
+        {/* Summary */}
         <OfferSummary items={offer} settings={settings} />
 
-        {/* Tabuľka produktov */}
+        {/* Tabuľka */}
         {offer.length > 0 ? (
           <div className="bg-white border border-pkm-border rounded-xl shadow-sm overflow-hidden">
-            <div className="px-4 py-3 border-b border-pkm-border flex items-center justify-between">
+            <div className="px-4 py-3 border-b border-pkm-border">
               <span className="text-sm font-semibold text-slate-700">
                 Produkty v ponuke
                 <span className="ml-2 text-xs font-normal text-slate-400">({offer.length} položiek)</span>
@@ -137,10 +153,10 @@ export default function App() {
         )}
 
         <div className="text-xs text-slate-400 text-center pb-4">
-          Ceny v databáze sú orientačné (január 2026). Vždy over aktuálne ceny na{' '}
-          <a href="https://www.cardmarket.com/en/Pokemon" target="_blank" rel="noopener noreferrer" className="hover:text-slate-600 underline underline-offset-2">Cardmarket</a>{' '}
-          a{' '}
-          <a href="https://www.ebay.com/sch/i.html?_nkw=pokemon+tcg&LH_Sold=1" target="_blank" rel="noopener noreferrer" className="hover:text-slate-600 underline underline-offset-2">eBay</a>.
+          Singles: CM ceny z pokemontcg.io API (denná synchronizácia s Cardmarket) ·
+          Sealed: zadaj ručne podľa{' '}
+          <a href="https://www.cardmarket.com/en/Pokemon" target="_blank" rel="noopener noreferrer" className="hover:text-slate-600 underline underline-offset-2">Cardmarket</a>
+          {' '}— ceny sa ukladajú do prehliadača
         </div>
       </div>
     </div>

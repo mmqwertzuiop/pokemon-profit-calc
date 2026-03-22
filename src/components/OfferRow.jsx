@@ -1,5 +1,33 @@
-import { Trash2, ExternalLink } from 'lucide-react'
+import { Trash2, ExternalLink, RefreshCw, CheckCircle } from 'lucide-react'
 import { cmNetRevenue, ebayNetRevenue, calcProfit, calcMargin, getRecommendation } from '../utils/calc'
+import { timeAgo, daysOld } from '../utils/time'
+
+// Prahové hodnoty čerstvosti cien
+const FRESH_DAYS = 1      // zelené — do 1 dňa
+const WARNING_DAYS = 5    // oranžové — 1–5 dní
+// > 5 dní = červené upozornenie
+
+function PriceFreshness({ updatedAt, source }) {
+  if (!updatedAt) return null
+  const days = daysOld(updatedAt)
+  const ago = timeAgo(updatedAt)
+
+  if (source === 'api' && days < 2) {
+    return (
+      <div className="flex items-center gap-1 text-xs text-green-600 mt-0.5">
+        <CheckCircle className="w-3 h-3" />
+        <span>CM API · {ago}</span>
+      </div>
+    )
+  }
+  if (days <= FRESH_DAYS) {
+    return <div className="text-xs text-green-600 mt-0.5">✓ {ago}</div>
+  }
+  if (days <= WARNING_DAYS) {
+    return <div className="text-xs text-amber-500 mt-0.5">⚠ {ago} — over cenu</div>
+  }
+  return <div className="text-xs text-red-500 mt-0.5 font-medium">⚠ {ago} — cena môže byť zastaraná!</div>
+}
 
 function PriceInput({ value, onChange, placeholder, highlight }) {
   return (
@@ -14,7 +42,7 @@ function PriceInput({ value, onChange, placeholder, highlight }) {
         placeholder={placeholder}
         className={`w-full border text-slate-800 text-sm rounded-lg pl-6 pr-2 py-1.5 focus:outline-none transition-colors placeholder-slate-300
           ${highlight
-            ? 'bg-pkm-yellow/10 border-pkm-yellow focus:border-yellow-400 font-semibold'
+            ? 'bg-amber-50 border-amber-300 focus:border-amber-400 font-semibold'
             : 'bg-pkm-input border-pkm-border focus:border-blue-400'
           }`}
       />
@@ -58,8 +86,10 @@ export default function OfferRow({ item, settings, onUpdate, onRemove }) {
   const ebayProfit = item.buyPrice !== '' && ebayPrice > 0 ? calcProfit(buyPrice, ebayNet) : null
   const ebayMargin = ebayProfit !== null ? calcMargin(ebayProfit, buyPrice) : 0
 
-  const cmSearchUrl = `https://www.cardmarket.com/en/Pokemon/Products/Search?searchString=${encodeURIComponent(item.name)}`
-  const ebaySearchUrl = `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(item.name + ' pokemon')}&LH_Sold=1&LH_Complete=1`
+  // Cardmarket URL — pre singles použije priamy link z API, inak search
+  const cmUrl = item.cardmarketUrl
+    ?? `https://www.cardmarket.com/en/Pokemon/Products/Search?searchString=${encodeURIComponent(item.name)}`
+  const ebayUrl = `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(item.name + ' pokemon')}&LH_Sold=1&LH_Complete=1`
 
   return (
     <tr className="hover:bg-slate-50 transition-colors group">
@@ -90,10 +120,7 @@ export default function OfferRow({ item, settings, onUpdate, onRemove }) {
       {/* Počet */}
       <td className="px-3 py-3 w-16">
         <input
-          type="number"
-          min="1"
-          max="999"
-          value={qty}
+          type="number" min="1" max="999" value={qty}
           onChange={(e) => onUpdate('qty', Math.max(1, parseInt(e.target.value) || 1))}
           className="w-full bg-pkm-input border border-pkm-border text-slate-800 text-sm rounded-lg px-2 py-1.5 text-center focus:outline-none focus:border-blue-400"
         />
@@ -101,29 +128,20 @@ export default function OfferRow({ item, settings, onUpdate, onRemove }) {
 
       {/* Kúpna cena */}
       <td className="px-3 py-3 w-32">
-        <PriceInput
-          value={item.buyPrice}
-          onChange={(v) => onUpdate('buyPrice', v)}
-          placeholder="za koľko?"
-          highlight
-        />
+        <PriceInput value={item.buyPrice} onChange={(v) => onUpdate('buyPrice', v)} placeholder="za koľko?" highlight />
         {qty > 1 && item.buyPrice !== '' && (
-          <div className="text-xs text-slate-400 mt-1 text-center">
-            {qty}× = €{(buyPrice * qty).toFixed(2)}
-          </div>
+          <div className="text-xs text-slate-400 mt-1 text-center">{qty}× = €{(buyPrice * qty).toFixed(2)}</div>
         )}
       </td>
 
       {/* CM cena */}
-      <td className="px-3 py-3 w-36">
-        <PriceInput
-          value={item.cmPrice ?? ''}
-          onChange={(v) => onUpdate('cmPrice', v)}
-          placeholder="trhová"
-        />
-        <a href={cmSearchUrl} target="_blank" rel="noopener noreferrer"
+      <td className="px-3 py-3 w-40">
+        <PriceInput value={item.cmPrice ?? ''} onChange={(v) => onUpdate('cmPrice', v)} placeholder="trhová" />
+        <PriceFreshness updatedAt={item.cmUpdatedAt} source={item.priceSource} />
+        <a href={cmUrl} target="_blank" rel="noopener noreferrer"
           className="flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700 mt-1 transition-colors">
-          <ExternalLink className="w-3 h-3" /> Cardmarket
+          <ExternalLink className="w-3 h-3" />
+          {item.cardmarketUrl ? 'Otvoriť na CM' : 'Hľadať na CM'}
         </a>
       </td>
 
@@ -133,13 +151,10 @@ export default function OfferRow({ item, settings, onUpdate, onRemove }) {
       </td>
 
       {/* eBay cena */}
-      <td className="px-3 py-3 w-36">
-        <PriceInput
-          value={item.ebayPrice ?? ''}
-          onChange={(v) => onUpdate('ebayPrice', v)}
-          placeholder="trhová"
-        />
-        <a href={ebaySearchUrl} target="_blank" rel="noopener noreferrer"
+      <td className="px-3 py-3 w-40">
+        <PriceInput value={item.ebayPrice ?? ''} onChange={(v) => onUpdate('ebayPrice', v)} placeholder="trhová" />
+        <PriceFreshness updatedAt={item.ebayUpdatedAt} source={item.type === 'Single' ? item.priceSource : null} />
+        <a href={ebayUrl} target="_blank" rel="noopener noreferrer"
           className="flex items-center gap-1 text-xs text-amber-500 hover:text-amber-700 mt-1 transition-colors">
           <ExternalLink className="w-3 h-3" /> eBay predané
         </a>
@@ -152,10 +167,7 @@ export default function OfferRow({ item, settings, onUpdate, onRemove }) {
 
       {/* Odstraniť */}
       <td className="px-3 py-3 w-10 text-center">
-        <button
-          onClick={onRemove}
-          className="text-slate-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
-        >
+        <button onClick={onRemove} className="text-slate-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100">
           <Trash2 className="w-4 h-4" />
         </button>
       </td>

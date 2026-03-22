@@ -25,6 +25,12 @@ function getCmPrice(cardmarket) {
   return p.trendPrice ?? p.averageSellPrice ?? p.avg7 ?? null
 }
 
+// Konvertuje "2024/01/15" → timestamp
+function cmDateToTs(dateStr) {
+  if (!dateStr) return null
+  try { return new Date(dateStr.replace(/\//g, '-')).getTime() } catch { return null }
+}
+
 async function fetchCards(query) {
   if (query.trim().length < 2) return []
   try {
@@ -41,8 +47,11 @@ async function fetchCards(query) {
       image: card.images?.small ?? null,
       number: card.number ?? '',
       cmPrice: getCmPrice(card.cardmarket),
+      cmUpdatedAt: cmDateToTs(card.cardmarket?.updatedAt),
       ebayPrice: getBestTcgPrice(card.tcgplayer),
+      ebayUpdatedAt: cmDateToTs(card.tcgplayer?.updatedAt),
       cardmarketUrl: card.cardmarket?.url ?? null,
+      priceSource: 'api',
       source: 'api-card',
     }))
   } catch {
