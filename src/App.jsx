@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { Zap, RotateCcw } from 'lucide-react'
 import ProductSearch from './components/ProductSearch'
 import OfferRow from './components/OfferRow'
@@ -6,6 +6,7 @@ import OfferSummary from './components/OfferSummary'
 import SettingsPanel from './components/SettingsPanel'
 import { useLocalStorage } from './hooks/useLocalStorage'
 import { usePriceCache } from './hooks/usePriceCache'
+import { fetchCMPrice, fetchEbayPrice } from './utils/prices'
 
 const DEFAULT_SETTINGS = {
   cmFee: 5,           // Cardmarket: 5% štandardný predajca
@@ -20,19 +21,60 @@ export default function App() {
   const [settings, setSettings] = useLocalStorage('pkm-settings', DEFAULT_SETTINGS)
   const { enrichProduct, saveToCache } = usePriceCache()
 
-  const addProduct = (product) => {
-    // Enrichí produkt o ceny z cache (ak API/DB nemá cenu, použije poslednú manuálnu)
+  const addProduct = useCallback((product) => {
     const enriched = enrichProduct(product)
+    // Mark as loading if it has no prices yet
+    const needsFetch = enriched.source !== 'api-card' && (enriched.cmPrice == null || enriched.ebayPrice == null)
+    const withLoading = needsFetch ? { ...enriched, loadingPrices: true } : enriched
+
     setOffer((prev) => {
-      const existing = prev.findIndex((i) => i.id === enriched.id)
+      const existing = prev.findIndex((i) => i.id === withLoading.id)
       if (existing !== -1) {
         const updated = [...prev]
         updated[existing] = { ...updated[existing], qty: (updated[existing].qty || 1) + 1 }
         return updated
       }
-      return [...prev, { ...enriched, qty: 1 }]
+      return [...prev, { ...withLoading, qty: 1 }]
     })
-  }
+
+    // Auto-fetch prices for sealed products (or any product without prices)
+    if (needsFetch) {
+      Promise.all([fetchCMPrice(enriched.name), fetchEbayPrice(enriched.name)]).then(
+        ([cmData, ebayData]) => {
+          setOffer((prev) =>
+            prev.map((item) => {
+              if (item.id !== enriched.id) return item
+              const updates = { loadingPrices: false }
+              if (cmData) {
+                updates.cmPrice = cmData.trend ?? cmData.avg ?? cmData.low
+                updates.cmPriceLow = cmData.low
+                updates.cmPriceAvg = cmData.avg
+                updates.cmPriceTrend = cmData.trend
+                updates.cmUpdatedAt = cmData.fetchedAt
+                updates.priceSource = 'api'
+                if (cmData.url) updates.cardmarketUrl = cmData.url
+                saveToCache(item.id, {
+                  cmPrice: updates.cmPrice,
+                  cmUpdatedAt: cmData.fetchedAt,
+                  source: 'api',
+                })
+              }
+              if (ebayData) {
+                updates.ebayPrice = ebayData.avg
+                updates.ebayPriceLow = ebayData.low
+                updates.ebayUpdatedAt = ebayData.fetchedAt
+                saveToCache(item.id, {
+                  ebayPrice: ebayData.avg,
+                  ebayUpdatedAt: ebayData.fetchedAt,
+                })
+              }
+              return { ...item, ...updates }
+            })
+          )
+        }
+      )
+    }
+  }, [enrichProduct, saveToCache])
 
   const updateItem = (id, field, value) => {
     setOffer((prev) =>

@@ -1,4 +1,4 @@
-import { Trash2, ExternalLink, CheckCircle } from 'lucide-react'
+import { Trash2, ExternalLink, CheckCircle, Loader2 } from 'lucide-react'
 import { cmNetRevenue, ebayNetRevenue, calcProfit, calcMargin, getRecommendation } from '../utils/calc'
 import { timeAgo, daysOld } from '../utils/time'
 
@@ -111,8 +111,23 @@ export default function OfferRow({ item, settings, onUpdate, onRemove }) {
 
       {/* CM cena */}
       <td className="px-3 py-3 w-44">
-        <PriceInput value={item.cmPrice ?? ''} onChange={(v) => onUpdate('cmPrice', v)} placeholder="trhová" />
-        <PriceFreshness updatedAt={item.cmUpdatedAt} source={item.priceSource} />
+        {item.loadingPrices ? (
+          <div className="flex items-center gap-1.5 text-xs text-slate-400 py-1">
+            <Loader2 className="w-3 h-3 animate-spin" /> Načítavam ceny...
+          </div>
+        ) : (
+          <>
+            <PriceInput value={item.cmPrice ?? ''} onChange={(v) => onUpdate('cmPrice', v)} placeholder="trhová" />
+            {item.cmPriceLow != null && item.cmPriceAvg != null && (
+              <div className="text-xs text-slate-400 mt-0.5 space-x-1.5">
+                <span>LOW <span className="text-blue-600 font-medium">€{item.cmPriceLow}</span></span>
+                <span>AVG <span className="text-blue-500">€{item.cmPriceAvg}</span></span>
+                {item.cmPriceTrend != null && <span>TREND <span className="text-blue-400">€{item.cmPriceTrend}</span></span>}
+              </div>
+            )}
+            <PriceFreshness updatedAt={item.cmUpdatedAt} source={item.priceSource} />
+          </>
+        )}
         <a href={cmUrl} target="_blank" rel="noopener noreferrer"
           className="flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700 mt-1 transition-colors">
           <ExternalLink className="w-3 h-3" />
@@ -127,8 +142,22 @@ export default function OfferRow({ item, settings, onUpdate, onRemove }) {
 
       {/* eBay cena */}
       <td className="px-3 py-3 w-40">
-        <PriceInput value={item.ebayPrice ?? ''} onChange={(v) => onUpdate('ebayPrice', v)} placeholder="trhová" />
-        <PriceFreshness updatedAt={item.ebayUpdatedAt} source={null} />
+        {item.loadingPrices ? (
+          <div className="flex items-center gap-1.5 text-xs text-slate-400 py-1">
+            <Loader2 className="w-3 h-3 animate-spin" /> Načítavam...
+          </div>
+        ) : (
+          <>
+            <PriceInput value={item.ebayPrice ?? ''} onChange={(v) => onUpdate('ebayPrice', v)} placeholder="trhová" />
+            {item.ebayPriceLow != null && (
+              <div className="text-xs text-slate-400 mt-0.5">
+                LOW <span className="text-amber-500 font-medium">€{item.ebayPriceLow}</span>
+                <span className="ml-1.5">AVG <span className="text-amber-400">€{item.ebayPrice}</span></span>
+              </div>
+            )}
+            <PriceFreshness updatedAt={item.ebayUpdatedAt} source={null} />
+          </>
+        )}
         <a href={ebayUrl} target="_blank" rel="noopener noreferrer"
           className="flex items-center gap-1 text-xs text-amber-500 hover:text-amber-700 mt-1 transition-colors">
           <ExternalLink className="w-3 h-3" /> eBay predané
