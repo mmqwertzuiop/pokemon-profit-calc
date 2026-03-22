@@ -381,19 +381,3 @@ function SealedRow({ p, onSelect }) {
   )
 }
 
-function TypeBadge({ type }) {
-  const colors = {
-    'ETB': 'bg-blue-900/60 text-blue-300',
-    'Booster Box': 'bg-purple-900/60 text-purple-300',
-    'Single': 'bg-amber-900/60 text-amber-300',
-    'UPC': 'bg-green-900/60 text-green-300',
-    'Tin': 'bg-cyan-900/60 text-cyan-300',
-    'Blister': 'bg-pink-900/60 text-pink-300',
-    'Bundle': 'bg-orange-900/60 text-orange-300',
-  }
-  return (
-    <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${colors[type] ?? 'bg-gray-800 text-gray-400'}`}>
-      {type}
-    </span>
-  )
-}
