@@ -58,7 +58,14 @@ export default function OfferRow({ item, settings, onUpdate, onRemove }) {
     <tr className="border-b border-pkm-border hover:bg-white/[0.02] group">
       {/* Produkt */}
       <td className="px-4 py-3">
-        <div className="flex items-start gap-2">
+        <div className="flex items-center gap-3">
+          {item.image && (
+            <img
+              src={item.image}
+              alt={item.name}
+              className="w-8 h-11 object-contain rounded shrink-0 opacity-90"
+            />
+          )}
           <div>
             <div className="text-sm text-gray-200 font-medium leading-tight">{item.name}</div>
             <div className="flex items-center gap-2 mt-0.5">
@@ -67,8 +74,12 @@ export default function OfferRow({ item, settings, onUpdate, onRemove }) {
                 item.type === 'ETB' ? 'bg-blue-900/50 text-blue-400' :
                 item.type === 'Booster Box' ? 'bg-purple-900/50 text-purple-400' :
                 item.type === 'Single' ? 'bg-amber-900/50 text-amber-400' :
+                item.type === 'UPC' ? 'bg-green-900/50 text-green-400' :
                 'bg-gray-800 text-gray-500'
               }`}>{item.type}</span>
+              {item.rarity && (
+                <span className="text-xs text-gray-600 truncate max-w-32">{item.rarity}</span>
+              )}
             </div>
           </div>
         </div>
