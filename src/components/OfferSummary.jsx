@@ -1,75 +1,91 @@
-import { TrendingUp, TrendingDown, Minus, ShoppingCart } from 'lucide-react'
+import { ShoppingCart, TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import { calcOfferSummary, getRecommendation } from '../utils/calc'
 
 export default function OfferSummary({ items, settings }) {
-  const hasItems = items.length > 0
   const hasAnyBuyPrice = items.some((i) => i.buyPrice !== '' && parseFloat(i.buyPrice) > 0)
 
-  if (!hasItems || !hasAnyBuyPrice) {
+  if (!items.length || !hasAnyBuyPrice) {
     return (
-      <div className="bg-pkm-card border border-pkm-border rounded-xl p-6 text-center text-gray-600">
-        <ShoppingCart className="w-8 h-8 mx-auto mb-2 opacity-30" />
-        <div className="text-sm">Pridaj produkty a zadaj ceny</div>
+      <div className="bg-white border border-pkm-border rounded-xl shadow-sm p-5 flex items-center gap-3 text-slate-400">
+        <ShoppingCart className="w-5 h-5 shrink-0" />
+        <span className="text-sm">Pridaj produkty a zadaj nákupné ceny — tu uvidíš výsledok celej ponuky.</span>
       </div>
     )
   }
 
-  const summary = calcOfferSummary(items, settings)
-  const recCm = getRecommendation(summary.marginCm, settings.targetMargin)
-  const recEbay = getRecommendation(summary.marginEbay, settings.targetMargin)
+  const s = calcOfferSummary(items, settings)
+  const recCm = getRecommendation(s.marginCm, settings.targetMargin)
+  const recEbay = getRecommendation(s.marginEbay, settings.targetMargin)
 
-  const VerdictBlock = ({ label, platform, profit, margin, rec }) => (
-    <div className={`rounded-xl p-4 border ${
-      rec.color === 'green' ? 'border-green-700/50 bg-green-900/10' :
-      rec.color === 'yellow' ? 'border-yellow-700/50 bg-yellow-900/10' :
-      'border-red-700/50 bg-red-900/10'
-    }`}>
-      <div className="text-xs text-gray-500 mb-1">{platform}</div>
-      <div className={`text-2xl font-black ${
-        rec.color === 'green' ? 'text-green-400' :
-        rec.color === 'yellow' ? 'text-yellow-400' : 'text-red-400'
-      }`}>
-        {profit >= 0 ? '+' : ''}{profit.toFixed(2)} €
-      </div>
-      <div className="text-sm text-gray-400">
-        {margin >= 0 ? '+' : ''}{margin.toFixed(1)}% marža
-      </div>
-      <div className={`mt-2 inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-bold ${
-        rec.color === 'green' ? 'bg-green-900/60 text-green-300' :
-        rec.color === 'yellow' ? 'bg-yellow-900/60 text-yellow-300' :
-        'bg-red-900/60 text-red-300'
-      }`}>
-        {rec.emoji} {rec.label}
-      </div>
-    </div>
-  )
+  // Hlavný verdikt: vyber lepšiu platformu
+  const bestProfit = Math.max(s.totalProfitCm, s.totalProfitEbay)
+  const bestMargin = s.totalProfitCm >= s.totalProfitEbay ? s.marginCm : s.marginEbay
+  const bestPlatform = s.totalProfitCm >= s.totalProfitEbay ? 'Cardmarket' : 'eBay'
+  const mainRec = getRecommendation(bestMargin, settings.targetMargin)
+
+  const verdictBg = mainRec.color === 'green' ? 'bg-green-500' : mainRec.color === 'yellow' ? 'bg-amber-400' : 'bg-red-500'
+  const verdictText = mainRec.color === 'green' ? 'KÚPIŤ' : mainRec.color === 'yellow' ? 'ZVAŽUJ' : 'NEKÚPIŤ'
+  const verdictIcon = mainRec.color === 'green'
+    ? <TrendingUp className="w-6 h-6" />
+    : mainRec.color === 'yellow'
+    ? <Minus className="w-6 h-6" />
+    : <TrendingDown className="w-6 h-6" />
 
   return (
-    <div className="bg-pkm-card border border-pkm-border rounded-xl p-5 space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-gray-300">Celkové zhrnutie ponuky</h2>
-        <div className="text-sm text-gray-500">
-          Investícia: <span className="text-gray-300 font-semibold">€{summary.totalBuy.toFixed(2)}</span>
+    <div className="bg-white border border-pkm-border rounded-xl shadow-sm overflow-hidden">
+      <div className="grid grid-cols-1 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-pkm-border">
+
+        {/* Hlavný verdikt */}
+        <div className={`${verdictBg} text-white p-5 flex flex-col items-center justify-center gap-2`}>
+          {verdictIcon}
+          <div className="text-2xl font-black tracking-tight">{verdictText}</div>
+          <div className="text-sm opacity-80">najlepšie cez {bestPlatform}</div>
+        </div>
+
+        {/* Investícia */}
+        <div className="p-5 flex flex-col justify-center">
+          <div className="text-xs text-slate-400 uppercase tracking-wider mb-1">Zaplatíš celkom</div>
+          <div className="text-2xl font-black text-slate-900">€{s.totalBuy.toFixed(2)}</div>
+          <div className="text-xs text-slate-400 mt-1">{items.filter(i => i.buyPrice !== '' && parseFloat(i.buyPrice) > 0).length} z {items.length} položiek oceňovaných</div>
+        </div>
+
+        {/* CM zisk */}
+        <div className="p-5 flex flex-col justify-center">
+          <div className="text-xs text-slate-400 uppercase tracking-wider mb-1">Zisk cez Cardmarket</div>
+          <div className={`text-2xl font-black ${s.totalProfitCm >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+            {s.totalProfitCm >= 0 ? '+' : ''}{s.totalProfitCm.toFixed(2)} €
+          </div>
+          <div className="flex items-center gap-2 mt-1">
+            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+              recCm.color === 'green' ? 'bg-green-100 text-green-700' :
+              recCm.color === 'yellow' ? 'bg-amber-100 text-amber-700' :
+              'bg-red-100 text-red-600'
+            }`}>{recCm.emoji} {s.marginCm.toFixed(1)}% marža</span>
+          </div>
+        </div>
+
+        {/* eBay zisk */}
+        <div className="p-5 flex flex-col justify-center">
+          <div className="text-xs text-slate-400 uppercase tracking-wider mb-1">Zisk cez eBay</div>
+          <div className={`text-2xl font-black ${s.totalProfitEbay >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+            {s.totalProfitEbay >= 0 ? '+' : ''}{s.totalProfitEbay.toFixed(2)} €
+          </div>
+          <div className="flex items-center gap-2 mt-1">
+            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+              recEbay.color === 'green' ? 'bg-green-100 text-green-700' :
+              recEbay.color === 'yellow' ? 'bg-amber-100 text-amber-700' :
+              'bg-red-100 text-red-600'
+            }`}>{recEbay.emoji} {s.marginEbay.toFixed(1)}% marža</span>
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <VerdictBlock
-          platform="Cardmarket"
-          profit={summary.totalProfitCm}
-          margin={summary.marginCm}
-          rec={recCm}
-        />
-        <VerdictBlock
-          platform="eBay"
-          profit={summary.totalProfitEbay}
-          margin={summary.marginEbay}
-          rec={recEbay}
-        />
-      </div>
-
-      <div className="text-xs text-gray-600 pt-1 border-t border-pkm-border">
-        CM fee {settings.cmFee}% · eBay fee {settings.ebayFee}% · Poštovné {settings.shippingOut}€/ks · Cieľová marža {settings.targetMargin}%
+      {/* Subinfo */}
+      <div className="px-5 py-2 bg-slate-50 border-t border-pkm-border text-xs text-slate-400 flex flex-wrap gap-4">
+        <span>CM fee {settings.cmFee}%</span>
+        <span>eBay fee {settings.ebayFee}%</span>
+        <span>Poštovné {settings.shippingOut}€/ks</span>
+        <span>Cieľová marža {settings.targetMargin}%</span>
       </div>
     </div>
   )

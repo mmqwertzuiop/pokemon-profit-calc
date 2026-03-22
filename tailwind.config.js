@@ -7,9 +7,10 @@ export default {
         pkm: {
           yellow: '#FFCB05',
           blue: '#3B5CA8',
-          dark: '#0f1117',
-          card: '#1a1d27',
-          border: '#2a2d3a',
+          bg: '#f1f5f9',
+          card: '#ffffff',
+          border: '#e2e8f0',
+          input: '#f8fafc',
         },
       },
     },
