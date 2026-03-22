@@ -1,9 +1,6 @@
-import { useState } from 'react'
-import { Trash2, ExternalLink, CheckCircle, Loader2, RefreshCw } from 'lucide-react'
+import { Trash2, ExternalLink, CheckCircle } from 'lucide-react'
 import { cmNetRevenue, ebayNetRevenue, calcProfit, calcMargin, getRecommendation } from '../utils/calc'
 import { timeAgo, daysOld } from '../utils/time'
-import { searchPC, getPCProductPrice, findBestMatch } from '../utils/pricecharting'
-import { getEurUsdRate, usdToEur } from '../utils/exchangeRate'
 
 function PriceFreshness({ updatedAt, source }) {
   if (!updatedAt) return null
@@ -48,81 +45,6 @@ function ProfitCell({ profit, margin, rec }) {
           rec.color === 'yellow' ? 'bg-amber-100 text-amber-700' :
           'bg-red-100 text-red-600'
         }`}>{rec.label}</span>
-      )}
-    </div>
-  )
-}
-
-// PriceCharting inline blok — zobrazí sa len ak má user token
-function PCPriceBlock({ item, pcToken }) {
-  const [state, setState] = useState('idle') // idle | loading | done | error | notfound
-  const [pcData, setPcData] = useState(null)
-  const [eurRate, setEurRate] = useState(0.92)
-
-  const fetchPC = async () => {
-    setState('loading')
-    try {
-      const [results, rate] = await Promise.all([
-        searchPC(item.name, pcToken),
-        getEurUsdRate(),
-      ])
-      setEurRate(rate)
-      if (!results.length) { setState('notfound'); return }
-      const best = findBestMatch(results, item.name)
-      if (!best) { setState('notfound'); return }
-      const prices = await getPCProductPrice(best.id, pcToken)
-      if (!prices) { setState('error'); return }
-      setPcData(prices)
-      setState('done')
-    } catch {
-      setState('error')
-    }
-  }
-
-  // Relevantná cena: sealed → newPrice, single → loosePrice
-  const relevantUsd = item.type === 'Single'
-    ? (pcData?.loosePrice ?? pcData?.newPrice)
-    : (pcData?.newPrice ?? pcData?.completePrice)
-  const relevantEur = relevantUsd ? usdToEur(relevantUsd, eurRate) : null
-
-  return (
-    <div className="mt-1.5 pt-1.5 border-t border-slate-100">
-      {state === 'idle' && (
-        <button
-          onClick={fetchPC}
-          className="flex items-center gap-1 text-xs text-violet-600 hover:text-violet-800 transition-colors font-medium"
-        >
-          <RefreshCw className="w-3 h-3" /> Načítať PC cenu
-        </button>
-      )}
-      {state === 'loading' && (
-        <div className="flex items-center gap-1 text-xs text-slate-400">
-          <Loader2 className="w-3 h-3 animate-spin" /> Načítavam...
-        </div>
-      )}
-      {state === 'done' && pcData && (
-        <div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs font-semibold text-violet-700">
-              PC: ${relevantUsd?.toFixed(2)} ≈ €{relevantEur?.toFixed(2)}
-            </span>
-            <button onClick={fetchPC} className="text-slate-400 hover:text-slate-600" title="Obnoviť">
-              <RefreshCw className="w-3 h-3" />
-            </button>
-          </div>
-          <a href={pcData.url} target="_blank" rel="noopener noreferrer"
-            className="flex items-center gap-1 text-xs text-violet-500 hover:text-violet-700 transition-colors mt-0.5">
-            <ExternalLink className="w-3 h-3" /> PriceCharting
-          </a>
-        </div>
-      )}
-      {state === 'notfound' && (
-        <span className="text-xs text-slate-400">PC: produkt sa nenašiel</span>
-      )}
-      {state === 'error' && (
-        <button onClick={fetchPC} className="text-xs text-red-400 hover:text-red-600">
-          PC: chyba — skúsiť znova
-        </button>
       )}
     </div>
   )
@@ -196,7 +118,6 @@ export default function OfferRow({ item, settings, onUpdate, onRemove }) {
           <ExternalLink className="w-3 h-3" />
           {item.cardmarketUrl ? 'Otvoriť na CM' : 'Hľadať na CM'}
         </a>
-        {settings.pcToken && <PCPriceBlock item={item} pcToken={settings.pcToken} />}
       </td>
 
       {/* CM zisk */}

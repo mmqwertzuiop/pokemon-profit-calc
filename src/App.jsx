@@ -13,7 +13,6 @@ const DEFAULT_SETTINGS = {
   ebayFee: 3,         // eBay.de: ~3% efektívne (0% FVF + 2.49% platba + €0.35/objednávka)
   shippingOut: 4,     // priemerná cena zásielky (tracked letter EU)
   targetMargin: 15,
-  pcToken: '',        // PriceCharting API token (voliteľné, platené)
 }
 
 export default function App() {
