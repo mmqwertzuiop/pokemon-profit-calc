@@ -8,10 +8,12 @@ import { useLocalStorage } from './hooks/useLocalStorage'
 import { usePriceCache } from './hooks/usePriceCache'
 
 const DEFAULT_SETTINGS = {
-  cmFee: 5,
-  ebayFee: 13,
-  shippingOut: 3,
+  cmFee: 5,           // Cardmarket: 5% štandardný predajca
+  ebayPlatform: 'de', // eBay.de EU súkromný predajca
+  ebayFee: 3,         // eBay.de: ~3% efektívne (0% FVF + 2.49% platba + €0.35/objednávka)
+  shippingOut: 4,     // priemerná cena zásielky (tracked letter EU)
   targetMargin: 15,
+  pcToken: '',        // PriceCharting API token (voliteľné, platené)
 }
 
 export default function App() {
